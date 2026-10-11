@@ -15,6 +15,7 @@ export interface BoardRow {
   spd: number;
   vs: number;
   gnd: boolean;
+  hdg: number;
   km: number;
   etaMin: number | null;
 }
@@ -28,7 +29,7 @@ export interface Board {
 const GROUND_KM = 6;
 
 const row = (f: LiveFlight, other: string, km: number, etaMin: number | null): BoardRow => ({
-  id: f.id, fn: f.fn, cs: f.cs, al: f.al, type: f.type, reg: f.reg, other, lat: f.lat, lon: f.lon, alt: f.alt, spd: f.spd, vs: f.vs, gnd: f.gnd, km, etaMin,
+  id: f.id, fn: f.fn, cs: f.cs, al: f.al, type: f.type, reg: f.reg, other, lat: f.lat, lon: f.lon, alt: f.alt, spd: f.spd, vs: f.vs, gnd: f.gnd, hdg: f.hdg, km, etaMin,
 });
 
 export function buildBoard(flights: LiveFlight[], code: string, lat: number, lon: number): Board {

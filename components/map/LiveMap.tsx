@@ -36,7 +36,11 @@ interface Props {
   routeAhead: Array<[number, number]> | null;
   routeBehind: Array<[number, number]> | null;
   follow: boolean;
-  layers: { labels: boolean; night: boolean; airports: boolean };
+  layers: { labels: boolean; night: boolean; airports: boolean; radar: boolean; wx: boolean };
+  radar: { host: string; path: string } | null;
+  airportWx: Record<string, string | null>;
+  // A point picked on the altitude chart: [lon, lat, altFt, epoch]
+  scrub: [number, number, number, number] | null;
   theme: Theme;
   onSelect: (id: string | null) => void;
   onAirport: (code: string) => void;
@@ -57,6 +61,7 @@ function applyTheme(m: MlMap, theme: Theme) {
   m.setPaintProperty('airport-label', 'text-halo-color', p.halo);
   m.setPaintProperty('behind', 'line-color', route);
   m.setPaintProperty('ahead', 'line-color', route);
+  m.setPaintProperty('scrub', 'circle-stroke-color', route);
   m.setPaintProperty('flight-halo', 'circle-color', route);
   m.setPaintProperty('flight-halo', 'circle-stroke-color', route);
   m.setPaintProperty('flights', 'icon-color', ['case', ['==', ['get', 'sel'], 1], route, ['==', ['get', 'emg'], 1], EMERGENCY_COLOR, altColorExpression(theme)] as never);
@@ -110,6 +115,8 @@ function trailFeatures(trail: Props['trail'], theme: Theme) {
 const line = (coords: Array<[number, number]> | null) =>
   coords && coords.length > 1 ? { type: 'Feature' as const, geometry: { type: 'LineString' as const, coordinates: coords }, properties: {} } : EMPTY;
 
+export const WX_COLORS: Record<string, string> = { VFR: '#22C55E', MVFR: '#3B82F6', IFR: '#EF4444', LIFR: '#D946EF' };
+
 const airportFc = {
   type: 'FeatureCollection' as const,
   features: (airports as Array<{ code: string; name: string; lat: number; lon: number }>).map((a) => ({
@@ -123,11 +130,20 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const ready = useRef(false);
+  const radarFrame = useRef<string | null>(null);
   const latest = useRef(props);
   latest.current = props;
 
   useImperativeHandle(ref, () => ({
-    flyTo: (lon, lat, zoom) => map.current?.flyTo({ center: [lon, lat], zoom: zoom ?? Math.max(map.current.getZoom(), 7), duration: 900, essential: true }),
+    flyTo: (lon, lat, zoom) =>
+      map.current?.flyTo({
+        center: [lon, lat],
+        zoom: zoom ?? Math.max(map.current.getZoom(), 7),
+        duration: 900,
+        essential: true,
+        // On phones the flight sheet covers the lower half; aim above it.
+        offset: window.innerWidth < 768 ? [0, -Math.round(window.innerHeight * 0.2)] : [0, 0],
+      }),
     fitPoints: (pts, padding) => {
       const m = map.current;
       if (!m || pts.length === 0) return;
@@ -164,11 +180,13 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
       m.addImage('plane', planeImage(64), { sdf: true, pixelRatio: 2 });
       m.addSource('night', { type: 'geojson', data: nightPolygon() });
       m.addLayer({ id: 'night', type: 'fill', source: 'night', paint: { 'fill-color': '#000814', 'fill-opacity': 0.28 } });
+      radarFrame.current = null;
       m.addSource('airports', { type: 'geojson', data: airportFc });
       m.addSource('trail', { type: 'geojson', data: EMPTY });
       m.addSource('ahead', { type: 'geojson', data: EMPTY });
       m.addSource('behind', { type: 'geojson', data: EMPTY });
       m.addSource('flights', { type: 'geojson', data: EMPTY });
+      m.addSource('scrub', { type: 'geojson', data: EMPTY });
 
       m.addLayer({ id: 'airport-dot', type: 'circle', source: 'airports', minzoom: 6, paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 2.5, 9, 5], 'circle-color': '#0B1222', 'circle-stroke-color': '#7E8AA8', 'circle-stroke-width': 1.4 } });
       m.addLayer({
@@ -182,6 +200,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
       m.addLayer({ id: 'behind', type: 'line', source: 'behind', paint: { 'line-color': ROUTE.dark, 'line-opacity': 0.35, 'line-width': 1.5, 'line-dasharray': [1, 2] } });
       m.addLayer({ id: 'trail', type: 'line', source: 'trail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': ['interpolate', ['linear'], ['zoom'], 3, 2, 10, 3.5] } });
       m.addLayer({ id: 'ahead', type: 'line', source: 'ahead', layout: { 'line-cap': 'round' }, paint: { 'line-color': ROUTE.dark, 'line-width': ['interpolate', ['linear'], ['zoom'], 3, 2, 10, 3], 'line-dasharray': [2, 1.5] } });
+      m.addLayer({ id: 'scrub', type: 'circle', source: 'scrub', paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': ROUTE.dark, 'circle-stroke-width': 3 } });
       m.addLayer({
         id: 'flight-halo',
         type: 'circle',
@@ -296,7 +315,7 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
         if (f) {
           const dt = Math.min(MAX_EXTRAPOLATE_S, (Date.now() - p.fetchedAt) / 1000);
           const [lat, lon] = !f.gnd && f.spd > 40 ? project(f.lat, f.lon, f.hdg, f.spd, dt) : [f.lat, f.lon];
-          m.easeTo({ center: [lon, lat], duration: 900, easing: (t) => t });
+          m.easeTo({ center: [lon, lat], duration: 900, easing: (t) => t, offset: window.innerWidth < 768 ? [0, -Math.round(window.innerHeight * 0.2)] : [0, 0] });
         }
       }
     }, 1000);
@@ -322,14 +341,31 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
     (m.getSource('flights') as GeoJSONSource).setData(flightFeatures(p.flights, p.fetchedAt, p.selectedId));
     (m.getSource('trail') as GeoJSONSource).setData(trailFeatures(p.trail, p.theme));
     (m.getSource('ahead') as GeoJSONSource).setData(line(p.routeAhead));
+    (m.getSource('scrub') as GeoJSONSource).setData(p.scrub ? { type: 'Feature', geometry: { type: 'Point', coordinates: [p.scrub[0], p.scrub[1]] }, properties: {} } : EMPTY);
     (m.getSource('behind') as GeoJSONSource).setData(line(p.routeBehind));
     const vis = (on: boolean) => (on ? 'visible' : 'none');
+    // Rain radar: swap the raster source whenever RainViewer publishes a new frame.
+    const frame = p.radar ? `${p.radar.host}${p.radar.path}` : null;
+    if (frame && frame !== radarFrame.current) {
+      if (m.getLayer('radar')) m.removeLayer('radar');
+      if (m.getSource('radar')) m.removeSource('radar');
+      m.addSource('radar', { type: 'raster', tiles: [`${frame}/256/{z}/{x}/{y}/2/1_1.png`], tileSize: 256, maxzoom: 7, attribution: 'Radar: RainViewer' });
+      m.addLayer({ id: 'radar', type: 'raster', source: 'radar', paint: { 'raster-opacity': 0.65, 'raster-fade-duration': 300 } }, 'airport-dot');
+      radarFrame.current = frame;
+    }
+    if (m.getLayer('radar')) m.setLayoutProperty('radar', 'visibility', vis(p.layers.radar));
+    const wxEntries = Object.entries(p.airportWx).filter(([, c]) => c && WX_COLORS[c]);
+    m.setPaintProperty(
+      'airport-dot',
+      'circle-color',
+      (p.layers.wx && wxEntries.length ? ['match', ['get', 'code'], ...wxEntries.flatMap(([code, c]) => [code, WX_COLORS[c!]]), PALETTES[p.theme].halo] : PALETTES[p.theme].halo) as never,
+    );
     m.setLayoutProperty('flight-label', 'visibility', vis(p.layers.labels));
     m.setLayoutProperty('night', 'visibility', vis(p.layers.night));
     for (const id of ['airport-dot', 'airport-label']) m.setLayoutProperty(id, 'visibility', vis(p.layers.airports));
   };
 
-  useEffect(sync, [props.flights, props.fetchedAt, props.selectedId, props.trail, props.routeAhead, props.routeBehind, props.layers, props.theme]);
+  useEffect(sync, [props.flights, props.fetchedAt, props.selectedId, props.trail, props.routeAhead, props.routeBehind, props.layers, props.theme, props.radar, props.airportWx, props.scrub]);
   useEffect(() => {
     if (map.current && ready.current) applyTheme(map.current, props.theme);
   }, [props.theme]);

@@ -8,18 +8,18 @@ export type Theme = 'light' | 'dark';
 const KEY = 'ft-theme';
 
 // Runs before paint (see layout) so the page never flashes the wrong theme.
-export const themeBootScript = `(function(){try{var p=localStorage.getItem('${KEY}')||'system';var d=p==='dark'||(p==='system'&&!matchMedia('(prefers-color-scheme: light)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='dark';}})();`;
+export const themeBootScript = `(function(){try{var p=localStorage.getItem('${KEY}')||'light';var d=p==='dark'||(p==='system'&&!matchMedia('(prefers-color-scheme: light)').matches);document.documentElement.dataset.theme=d?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}})();`;
 
 const resolve = (p: ThemePref): Theme => (p === 'system' ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : p);
 
 export function useTheme() {
-  const [pref, setPref] = useState<ThemePref>('system');
-  const [theme, setTheme] = useState<Theme>('dark');
+  const [pref, setPref] = useState<ThemePref>('light');
+  const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
-    let p: ThemePref = 'system';
+    let p: ThemePref = 'light';
     try {
-      p = (localStorage.getItem(KEY) as ThemePref) || 'system';
+      p = (localStorage.getItem(KEY) as ThemePref) || 'light';
     } catch {
       // storage blocked: follow the system
     }
@@ -46,7 +46,7 @@ export function useTheme() {
   }, [theme]);
 
   const cycle = useCallback(() => {
-    const order: ThemePref[] = ['system', 'light', 'dark'];
+    const order: ThemePref[] = ['light', 'dark', 'system'];
     const next = order[(order.indexOf(pref) + 1) % order.length];
     try {
       localStorage.setItem(KEY, next);

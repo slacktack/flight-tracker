@@ -1,6 +1,6 @@
 'use client';
 
-import { CloudRain, Moon, Plane, Tag, X } from 'lucide-react';
+import { CloudRain, CloudSun, Moon, Plane, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export interface Layers {
@@ -8,15 +8,17 @@ export interface Layers {
   night: boolean;
   airports: boolean;
   radar: boolean;
+  wx: boolean;
 }
 
-export const DEFAULT_LAYERS: Layers = { labels: false, night: true, airports: true, radar: false };
+export const DEFAULT_LAYERS: Layers = { labels: false, night: true, airports: true, radar: false, wx: false };
 
 const ITEMS: Array<{ id: keyof Layers; label: string; hint: string; icon: typeof Tag }> = [
   { id: 'labels', label: 'Flight labels', hint: 'Flight numbers beside planes when zoomed in', icon: Tag },
   { id: 'night', label: 'Day and night', hint: 'Shades where the sun has set', icon: Moon },
   { id: 'radar', label: 'Rain radar', hint: 'Latest precipitation, about 10 minutes old', icon: CloudRain },
   { id: 'airports', label: 'Airports', hint: 'Airport markers and codes', icon: Plane },
+  { id: 'wx', label: 'Airport weather', hint: 'Green good, blue marginal, red low cloud or haze, magenta worst', icon: CloudSun },
 ];
 
 export function LayersPanel({ layers, onChange, onClose, radarAvailable }: { layers: Layers; onChange: (l: Layers) => void; onClose: () => void; radarAvailable: boolean }) {

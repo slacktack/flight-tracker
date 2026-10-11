@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Siren, X } from 'lucide-react';
 import { EMERGENCY, LiveMap, type LiveMapHandle, type MapBounds } from '@/components/map/LiveMap';
 import { useLocal } from '@/lib/useLocal';
+import { useQuery } from '@tanstack/react-query';
 import { DEFAULT_LAYERS, LayersPanel, type Layers } from './LayersPanel';
 import { RightNow } from './RightNow';
 import { useLiveFeed } from '@/lib/useLiveFeed';
@@ -44,10 +45,24 @@ export function LiveScreen() {
   const [panel, setPanel] = useState<'filters' | 'layers' | 'stats' | null>(null);
   const togglePanel = (p: 'filters' | 'layers' | 'stats') => setPanel((cur) => (cur === p ? null : p));
   const lastSeen = useRef<LiveFlight | null>(null);
+  const [scrub, setScrub] = useState<[number, number, number, number] | null>(null);
   const now = useNow(5_000);
   const { theme } = useTheme();
 
   const feed = useLiveFeed(bounds);
+  const radar = useQuery({
+    queryKey: ['radar'],
+    queryFn: async () => ((await (await fetch('/api/weather/radar')).json()) as { frame: { host: string; path: string } | null }).frame,
+    enabled: layers.radar,
+    refetchInterval: 300_000,
+  });
+  const airportWx = useQuery({
+    queryKey: ['airport-wx'],
+    queryFn: async () => ((await (await fetch('/api/weather/airports')).json()) as { airports: Record<string, { cat: string | null }> }).airports,
+    enabled: layers.wx,
+    staleTime: 600_000,
+  });
+  const wxCats = useMemo(() => Object.fromEntries(Object.entries(airportWx.data ?? {}).map(([k, v]) => [k, v.cat])), [airportWx.data]);
   const all = useMemo(() => feed.data?.flights ?? [], [feed.data]);
   const visible = useMemo(() => applyFilters(all, filters), [all, filters]);
 
@@ -61,7 +76,9 @@ export function LiveScreen() {
     const t = detail.data?.trail ?? [];
     const last = t[t.length - 1];
     if (!selected || !last) return [];
-    return distanceKm(last[1], last[0], selected.lat, selected.lon) < 150 ? t : [];
+    if (distanceKm(last[1], last[0], selected.lat, selected.lon) >= 150) return [];
+    // OpenSky lags FR24 by a few minutes; join the trail to where the plane is now.
+    return [...t, [selected.lon, selected.lat, selected.gnd ? 0 : selected.alt, Math.max(last[3] + 1, selected.t || Math.round(Date.now() / 1000))] as [number, number, number, number]];
   }, [detail.data, selected]);
   // Keep the selected plane drawn even when a filter would hide it.
   const drawn = useMemo(() => (selected && !visible.some((f) => f.id === selected.id) ? [...visible, selected] : visible), [visible, selected]);
@@ -69,6 +86,8 @@ export function LiveScreen() {
   // Deep link: /?f=<id>&at=lat,lon
   useEffect(() => {
     const sp = new URLSearchParams(location.search);
+    const r = sp.get('route')?.toUpperCase().match(/^([A-Z]{3})-([A-Z]{3})$/);
+    if (r) setFilters((cur) => ({ ...cur, route: { from: r[1], to: r[2] } }));
     const f = sp.get('f');
     const at = sp.get('at')?.split(',').map(Number);
     if (f) setSelectedId(f);
@@ -132,9 +151,16 @@ export function LiveScreen() {
         routeAhead={route?.ahead ?? null}
         routeBehind={trail.length ? null : route?.behind ?? null}
         follow={follow}
-        layers={layers}
+        layers={{ ...layers, wx: !!layers.wx, radar: !!layers.radar }}
+        radar={radar.data ?? null}
+        airportWx={wxCats}
+        scrub={scrub}
         theme={theme}
-        onSelect={select}
+        onSelect={(id) => {
+          select(id);
+          const f = id ? all.find((x) => x.id === id) : null;
+          if (f && window.innerWidth < 768) mapRef.current?.flyTo(f.lon, f.lat);
+        }}
         onAirport={(code) => router.push(`/airport/${code}`)}
         onBounds={setBounds}
       />
@@ -185,7 +211,7 @@ export function LiveScreen() {
             ))}
             {filters.route && (
               <button type="button" onClick={() => setFilters({ ...filters, route: null })} className="glass flex h-8 items-center gap-1.5 rounded-full px-3 text-small text-ink shadow-float">
-                {filters.route.from} to {filters.route.to} <X className="h-3.5 w-3.5 text-ink-3" aria-label="Remove route filter" />
+                {filters.route.from} ⇄ {filters.route.to} <X className="h-3.5 w-3.5 text-ink-3" aria-label="Remove route filter" />
               </button>
             )}
             {filters.airline && (
@@ -211,7 +237,7 @@ export function LiveScreen() {
         {panel && (
           <div className="absolute right-[calc(100%+0.5rem)] top-0 origin-top-right animate-pop max-md:animate-rise max-md:fixed max-md:z-30 max-md:inset-x-3 max-md:right-3 max-md:top-auto max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]">
             {panel === 'filters' && <FilterPanel flights={all} filters={filters} onChange={setFilters} onClose={() => setPanel(null)} />}
-            {panel === 'layers' && <LayersPanel layers={layers} onChange={setLayers} onClose={() => setPanel(null)} radarAvailable={false} />}
+            {panel === 'layers' && <LayersPanel layers={layers} onChange={setLayers} onClose={() => setPanel(null)} radarAvailable />}
             {panel === 'stats' && (
               <RightNow
                 flights={visible}
@@ -248,6 +274,8 @@ export function LiveScreen() {
           onFit={fitRoute}
           onClose={() => select(null)}
           lost={!live}
+          trail={trail}
+          onScrub={setScrub}
         />
       )}
     </main>

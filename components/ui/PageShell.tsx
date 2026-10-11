@@ -3,7 +3,7 @@ import { cn } from '@/lib/cn';
 
 export function PageShell({ children, className, wide = false }: { children: React.ReactNode; className?: string; wide?: boolean }) {
   return (
-    <main className="min-h-dvh bg-night pb-[calc(5rem+env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] md:pb-16 md:pt-20">
+    <main className="min-h-dvh bg-night pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-16 md:pt-20">
       <div className="fixed right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-30 md:right-4 md:top-4">
         <ThemeToggle className="glass rounded-full shadow-float" />
       </div>

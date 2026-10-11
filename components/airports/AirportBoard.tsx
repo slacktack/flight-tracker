@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn';
 import { fmtAgo, fmtInt, fmtMinutes } from '@/lib/format';
 import { useTheme } from '@/lib/theme';
 import type { Board, BoardRow } from '@/lib/boards';
+import { MiniMap } from '@/components/ui/MiniMap';
 
 type Tab = 'arriving' | 'departed' | 'ground';
 const TABS: Array<{ id: Tab; label: string; icon: typeof PlaneLanding }> = [
@@ -84,13 +85,31 @@ export function AirportBoard({ code }: { code: string }) {
 
   return (
     <>
-      <Link href="/airports" className="mt-8 inline-flex min-h-10 items-center gap-1.5 text-small text-ink-2 hover:text-ink md:mt-2">
-        <ArrowLeft className="h-4 w-4" aria-hidden /> Airports
-      </Link>
-      <header className="mt-2">
+      <section className="relative -mx-4 h-[38dvh] min-h-[260px] overflow-hidden md:-mx-6 md:mt-2 md:h-[340px] md:rounded-[24px]">
+        {data ? (
+          <MiniMap
+            className="absolute inset-0"
+            center={[data.airport.lon, data.airport.lat]}
+            zoom={6.2}
+            dots={[{ code, lon: data.airport.lon, lat: data.airport.lat, weight: 1 }]}
+            planes={[...data.arriving, ...data.departed, ...data.ground].map((r) => ({ lon: r.lon, lat: r.lat, hdg: r.hdg, alt: r.alt, gnd: r.gnd }))}
+            label={`Live traffic around ${code}`}
+          />
+        ) : (
+          <div className="absolute inset-0 animate-pulse bg-panel" />
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-night via-transparent to-night/40" />
+        <Link href="/airports" className="glass absolute left-4 top-[max(0.75rem,env(safe-area-inset-top))] inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-small text-ink-2 shadow-float hover:text-ink md:left-6">
+          <ArrowLeft className="h-4 w-4" aria-hidden /> Airports
+        </Link>
+      </section>
+      <header className="relative -mt-16">
         <h1 className="font-cond text-[4.5rem] font-bold leading-[0.9] tracking-tight md:text-[6rem]">{code}</h1>
         <p className="mt-2 text-lead font-medium">{data?.airport.name ?? (isLoading ? '…' : '')}</p>
-        <p className="text-base text-ink-2">{data ? `${data.airport.city}, ${data.airport.country}` : ''}</p>
+        <p className="text-base text-ink-2">
+          {data ? `${data.airport.city}, ${data.airport.country}` : ''}
+          {data?.airport.country === 'India' && <span className="text-ink-3"> · {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' })} local</span>}
+        </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {data && (
             <Link href={`/?at=${data.airport.lat},${data.airport.lon}`} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-panel px-4 text-small font-semibold hairline hover:bg-panel-2">

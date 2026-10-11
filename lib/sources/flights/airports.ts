@@ -7,6 +7,7 @@ export interface AirportEntry {
   country: string;
   lat: number;
   lon: number;
+  icao?: string;
 }
 
 interface AirportRow {
@@ -16,6 +17,7 @@ interface AirportRow {
   country: string;
   lat: number;
   lon: number;
+  icao?: string;
 }
 
 const airports: AirportEntry[] = (airportsRaw as AirportRow[]).map((a) => ({
@@ -25,6 +27,7 @@ const airports: AirportEntry[] = (airportsRaw as AirportRow[]).map((a) => ({
   country: a.country,
   lat: a.lat,
   lon: a.lon,
+  icao: a.icao,
 }));
 
 const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -54,3 +57,5 @@ export function getAirport(code: string): AirportEntry | undefined {
   const c = code.toUpperCase();
   return airports.find((a) => a.code === c);
 }
+
+export const allAirports = () => airports;

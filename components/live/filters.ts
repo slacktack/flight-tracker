@@ -18,7 +18,7 @@ export function applyFilters(flights: LiveFlight[], fl: Filters): LiveFlight[] {
     (f) =>
       !fl.hiddenBands.includes(bandOf(f)) &&
       (!fl.airline || f.al === fl.airline) &&
-      (!fl.route || (f.org === fl.route.from && f.dst === fl.route.to)),
+      (!fl.route || (f.org === fl.route.from && f.dst === fl.route.to) || (f.org === fl.route.to && f.dst === fl.route.from)),
   );
 }
 
