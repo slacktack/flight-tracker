@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --night: 11 18 34;
+  --panel: 19 28 48;
+  --panel-2: 27 38 64;
+  --line: 38 50 77;
+  --ink: 231 236 245;
+  --ink-2: 160 172 198;
+  --ink-3: 112 125 154;
+  --route: 255 79 216;
+  --data: 92 225 230;
+  --good: 74 222 155;
+  --warn: 255 181 71;
+  --bad: 255 107 107;
+  --shadow-float: 0 12px 40px -12px rgb(2 6 18 / 0.75), 0 0 0 1px rgb(var(--line) / 0.9);
+}
+
+/* Day: pale sky chart, deep ink, the same magenta route a shade darker for contrast */
+[data-theme='light'] {
+  color-scheme: light;
+  --night: 238 242 248;
+  --panel: 255 255 255;
+  --panel-2: 241 244 250;
+  --line: 218 225 237;
+  --ink: 16 24 44;
+  --ink-2: 74 87 116;
+  --ink-3: 112 124 150;
+  --route: 214 32 156;
+  --data: 8 145 160;
+  --good: 22 150 96;
+  --warn: 196 112 8;
+  --bad: 214 54 54;
+  --shadow-float: 0 10px 30px -14px rgb(30 45 80 / 0.35), 0 0 0 1px rgb(var(--line));
+}
+
+html,
+body {
+  @apply bg-night text-ink;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--data));
+  outline-offset: 2px;
+}
+
+/* Text fields show focus on their container instead */
+input:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: rgb(var(--route) / 0.35);
+}
+
+/* iOS zooms into focused fields under 16px */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+@layer components {
+  .glass {
+    background: rgb(var(--panel) / 0.88);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  }
+  .hairline {
+    box-shadow: inset 0 0 0 1px rgb(var(--line));
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* MapLibre chrome, restyled to the night palette */
+.maplibregl-ctrl-attrib {
+  background: rgb(var(--night) / 0.7) !important;
+  color: rgb(var(--ink-3)) !important;
+  font-size: 10px;
+}
+.maplibregl-ctrl-attrib a {
+  color: rgb(var(--ink-2)) !important;
+}
+.maplibregl-ctrl-attrib-button {
+  filter: invert(1) opacity(0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
