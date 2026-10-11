@@ -118,6 +118,35 @@ function ItineraryCard({ it, cheapest }: { it: Itinerary; cheapest: boolean }) {
   );
 }
 
+// How the chosen day compares with the days around it.
+function PriceInsight({ days, date, onPick }: { days: FareDay[]; date: string; onPick: (d: string) => void }) {
+  const today = days.find((d) => d.date === date);
+  if (!today || days.length < 5) return null;
+  const sorted = [...days].map((d) => d.price).sort((a, b) => a - b);
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const cheapest = days.reduce((b, d) => (d.price < b.price ? d : b));
+  const diff = Math.round(((today.price - median) / median) * 100);
+  const tone = diff <= -5 ? 'good' : diff >= 8 ? 'warn' : 'ink';
+  const verdict = diff <= -5 ? 'Low' : diff >= 8 ? 'High' : 'Typical';
+  const saving = today.price - cheapest.price;
+  return (
+    <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-panel bg-panel p-4 hairline">
+      <span className={cn('rounded-full px-3 py-1 text-small font-semibold', tone === 'good' ? 'bg-good/15 text-good' : tone === 'warn' ? 'bg-warn/15 text-warn' : 'bg-panel-2 text-ink-2')}>{verdict} price</span>
+      <p className="min-w-0 flex-1 text-small text-ink-2">
+        {fmtInr(today.price)} on {fmtDayShort(date)} is {diff === 0 ? 'about the usual' : `${Math.abs(diff)}% ${diff < 0 ? 'below' : 'above'} the typical`} {fmtInr(median)} for these two weeks.
+        {saving > 200 && cheapest.date !== date && (
+          <>
+            {' '}
+            <button type="button" onClick={() => onPick(cheapest.date)} className="font-semibold text-ink underline decoration-route decoration-2 underline-offset-4">
+              Fly {fmtDayShort(cheapest.date)} and save {fmtInr(saving)}
+            </button>
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
+
 function FareStrip({ days, value, onPick }: { days: FareDay[]; value: string; onPick: (d: string) => void }) {
   const min = Math.min(...days.map((d) => d.price));
   const max = Math.max(...days.map((d) => d.price));
@@ -334,6 +363,7 @@ export function FaresScreen() {
 
       {ready && (
         <section className="mt-8" aria-live="polite">
+          {strip.length > 0 && <PriceInsight days={strip} date={qDate} onPick={(d) => go({ date: d })} />}
           {strip.length > 0 && (
             <div className="mb-6">
               <h2 className="mb-2 text-small font-medium text-ink-2">Cheapest by day</h2>

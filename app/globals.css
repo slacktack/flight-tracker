@@ -109,3 +109,29 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Plane hover card */
+.ft-tip .maplibregl-popup-content {
+  background: rgb(var(--panel) / 0.95);
+  color: rgb(var(--ink));
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: var(--shadow-float);
+  font: 500 12px/1.35 var(--font-sans), system-ui, sans-serif;
+  display: grid;
+  gap: 1px;
+  pointer-events: none;
+}
+.ft-tip strong {
+  font: 700 17px/1.1 var(--font-cond), system-ui, sans-serif;
+}
+.ft-tip span {
+  color: rgb(var(--ink-2));
+}
+.ft-tip em {
+  font-style: normal;
+  color: rgb(var(--ink-3));
+}
+.ft-tip .maplibregl-popup-tip {
+  display: none;
+}

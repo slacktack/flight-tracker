@@ -87,7 +87,7 @@ function flightFeatures(flights: LiveFlight[], fetchedAt: number, selectedId: st
         type: 'Feature' as const,
         id: f.id,
         geometry: { type: 'Point' as const, coordinates: [lon, lat] },
-        properties: { id: f.id, hdg: f.hdg, alt: f.alt, gnd: f.gnd ? 1 : 0, sel: f.id === selectedId ? 1 : 0, emg: EMERGENCY.has(f.sq) ? 1 : 0, label: f.fn || f.cs || f.reg },
+        properties: { id: f.id, hdg: f.hdg, alt: f.alt, gnd: f.gnd ? 1 : 0, sel: f.id === selectedId ? 1 : 0, emg: EMERGENCY.has(f.sq) ? 1 : 0, label: f.fn || f.cs || f.reg, route: f.org && f.dst ? `${f.org} → ${f.dst}` : '', type: f.type },
       };
     }),
   };
@@ -260,6 +260,21 @@ export const LiveMap = forwardRef<LiveMapHandle, Props>(function LiveMap(props, 
         const hits = m.queryRenderedFeatures(e.point, { layers: ['flights', 'flights-ground', 'airport-dot'] });
         if (hits.length === 0) latest.current.onSelect(null);
       });
+      // Desktop hover card: who it is before you click.
+      const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 16, className: 'ft-tip', maxWidth: '240px' });
+      const esc = (v: unknown) => String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+      for (const layer of ['flights', 'flights-ground']) {
+        m.on('mousemove', layer, (e) => {
+          const p = e.features?.[0]?.properties;
+          if (!p || matchMedia('(pointer: coarse)').matches) return;
+          const alt = Number(p.gnd) ? 'On the ground' : `${Math.round(Number(p.alt)).toLocaleString('en-IN')} ft`;
+          tip
+            .setLngLat(e.lngLat)
+            .setHTML(`<strong>${esc(p.label)}</strong>${p.route ? `<span>${esc(p.route)}</span>` : ''}<em>${esc([alt, p.type].filter(Boolean).join(' · '))}</em>`)
+            .addTo(m);
+        });
+        m.on('mouseleave', layer, () => tip.remove());
+      }
       for (const layer of ['flights', 'flights-ground', 'airport-dot']) {
         m.on('mouseenter', layer, () => (m.getCanvas().style.cursor = 'pointer'));
         m.on('mouseleave', layer, () => (m.getCanvas().style.cursor = ''));

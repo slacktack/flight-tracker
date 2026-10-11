@@ -87,6 +87,16 @@ export function LiveScreen() {
     history.replaceState(null, '', url);
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.target instanceof HTMLInputElement) return;
+      if (panel) setPanel(null);
+      else select(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [panel, select]);
+
   const fitRoute = useCallback(() => {
     if (!selected) return;
     const pts: Array<[number, number]> = [[selected.lon, selected.lat]];
@@ -199,7 +209,7 @@ export function LiveScreen() {
           onFilters={() => togglePanel('filters')}
         />
         {panel && (
-          <div className="absolute right-[calc(100%+0.5rem)] top-0 max-md:fixed max-md:z-30 max-md:inset-x-3 max-md:right-3 max-md:top-auto max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]">
+          <div className="absolute right-[calc(100%+0.5rem)] top-0 origin-top-right animate-pop max-md:animate-rise max-md:fixed max-md:z-30 max-md:inset-x-3 max-md:right-3 max-md:top-auto max-md:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]">
             {panel === 'filters' && <FilterPanel flights={all} filters={filters} onChange={setFilters} onClose={() => setPanel(null)} />}
             {panel === 'layers' && <LayersPanel layers={layers} onChange={setLayers} onClose={() => setPanel(null)} radarAvailable={false} />}
             {panel === 'stats' && (

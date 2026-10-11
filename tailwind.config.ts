@@ -35,6 +35,18 @@ const config: Config = {
         float: 'var(--shadow-float)',
       },
       screens: { xs: '380px' },
+      keyframes: {
+        rise: { from: { opacity: '0', transform: 'translateY(24px)' }, to: { opacity: '1', transform: 'none' } },
+        slide: { from: { opacity: '0', transform: 'translateX(-16px)' }, to: { opacity: '1', transform: 'none' } },
+        pop: { from: { opacity: '0', transform: 'translateY(-4px) scale(0.98)' }, to: { opacity: '1', transform: 'none' } },
+        fade: { from: { opacity: '0' }, to: { opacity: '1' } },
+      },
+      animation: {
+        rise: 'rise 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        slide: 'slide 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        pop: 'pop 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        fade: 'fade 240ms ease-out both',
+      },
     },
   },
   plugins: [],

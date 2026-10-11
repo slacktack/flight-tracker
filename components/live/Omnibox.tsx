@@ -167,7 +167,7 @@ export function Omnibox({ flights, onFlight, onRoute, onAirport }: Props) {
       </div>
 
       {open && (
-        <div className="glass absolute inset-x-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-panel shadow-float">
+        <div className="glass absolute inset-x-0 top-[calc(100%+8px)] z-50 origin-top animate-pop overflow-hidden rounded-panel shadow-float">
           <p className="border-b border-line px-4 py-2 text-micro text-ink-3">
             {q.trim() ? (items.length ? 'Results' : 'Nothing matches in this area. Try a flight number like AI101, a route like DEL BOM, or an airport.') : `${fmtInt(flights.filter((f) => !f.gnd).length)} flights in the air here${flights.length > LIST_LIMIT ? `, first ${LIST_LIMIT} shown` : ''}`}
           </p>

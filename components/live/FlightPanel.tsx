@@ -174,7 +174,7 @@ export function FlightPanel(props: Props) {
     <section
       aria-label={`Flight ${title}`}
       className={cn(
-        'glass fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex flex-col overflow-hidden rounded-t-[22px] shadow-float',
+        'glass fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 flex animate-rise flex-col overflow-hidden rounded-t-[22px] shadow-float transition-[max-height] duration-300 ease-out md:animate-slide',
         'md:bottom-4 md:left-4 md:right-auto md:top-[4.5rem] md:w-[380px] md:rounded-panel',
         expanded ? 'max-h-[80dvh]' : 'max-h-[52dvh] md:max-h-none',
       )}
@@ -194,7 +194,7 @@ export function FlightPanel(props: Props) {
         {photo && (
           <div className={cn('relative', !expanded && 'max-md:hidden')}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photo.large} alt={`${model || f.type} ${f.reg}`} className="aspect-[16/10] w-full object-cover" loading="lazy" />
+            <img src={photo.large} alt={`${model || f.type} ${f.reg}`} className="aspect-[16/10] w-full animate-fade object-cover" loading="lazy" />
             <div className="absolute inset-0 bg-gradient-to-t from-[rgb(var(--panel))] from-[8%] via-[rgb(var(--panel)/0.55)] via-[30%] to-transparent to-[60%]" />
             <a href={photo.link} target="_blank" rel="noopener noreferrer" className="absolute right-3 top-3 rounded-full bg-black/45 px-2.5 py-1 text-micro text-white/85 backdrop-blur hover:text-white">
               © {photo.photographer}
