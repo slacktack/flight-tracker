@@ -12,6 +12,8 @@ import { fmtAgo, fmtInt, fmtMinutes } from '@/lib/format';
 import { useTheme } from '@/lib/theme';
 import type { Board, BoardRow } from '@/lib/boards';
 import { MiniMap } from '@/components/ui/MiniMap';
+import { AirportWeather } from './AirportWeather';
+import { AirlineLogo, iataOf } from '@/components/ui/AirlineLogo';
 
 type Tab = 'arriving' | 'departed' | 'ground';
 const TABS: Array<{ id: Tab; label: string; icon: typeof PlaneLanding }> = [
@@ -35,7 +37,9 @@ function Row({ r, tab }: { r: BoardRow; tab: Tab }) {
     tab === 'arriving'
       ? r.etaMin !== null
         ? r.etaMin < 3
-          ? 'Landing now'
+          ? r.alt < 3000
+            ? 'Landing now'
+            : 'Approaching'
           : `in ~${fmtMinutes(r.etaMin)}`
         : `${fmtInt(r.km)} km out`
       : tab === 'departed'
@@ -46,7 +50,8 @@ function Row({ r, tab }: { r: BoardRow; tab: Tab }) {
   return (
     <li>
       <Link href={`/?f=${r.id}&at=${r.lat.toFixed(2)},${r.lon.toFixed(2)}`} className="flex min-h-[64px] items-center gap-3 px-4 py-2.5 transition-colors hover:bg-panel-2">
-        <span className="w-[5.5rem] shrink-0 font-cond text-lead font-semibold">{title}</span>
+        <AirlineLogo iata={iataOf(r.fn, r.al)} size={30} />
+        <span className="w-[4.75rem] shrink-0 font-cond text-lead font-semibold">{title}</span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-base">
             <span className="text-ink-3">{tab === 'arriving' ? 'from ' : tab === 'departed' ? 'to ' : ''}</span>
@@ -121,6 +126,10 @@ export function AirportBoard({ code }: { code: string }) {
           </Link>
         </div>
       </header>
+
+      <div className="mt-6">
+        <AirportWeather code={code} />
+      </div>
 
       {error && <p className="mt-8 rounded-panel bg-bad/10 p-4 text-base text-bad">{(error as Error).message}</p>}
 

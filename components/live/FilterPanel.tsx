@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { Plane, X } from 'lucide-react';
 import { bands } from '@/lib/altitude';
 import { useTheme } from '@/lib/theme';
+import { AirlineLogo } from '@/components/ui/AirlineLogo';
+import { airlineIata } from '@/lib/airlines';
 import { airlineName } from '@/lib/airlines';
 import { cn } from '@/lib/cn';
 import { fmtInt } from '@/lib/format';
@@ -73,8 +75,9 @@ export function FilterPanel({ flights, filters, onChange, onClose }: Props) {
                 type="button"
                 aria-pressed={filters.airline === icao}
                 onClick={() => onChange({ ...filters, airline: filters.airline === icao ? null : icao })}
-                className={cn('min-h-9 rounded-full border px-3 text-small', filters.airline === icao ? 'border-data bg-data/15 text-ink' : 'border-line text-ink-2 hover:text-ink')}
+                className={cn('inline-flex min-h-9 items-center gap-1.5 rounded-full border py-1 pl-1 pr-3 text-small', filters.airline === icao ? 'border-data bg-data/15 text-ink' : 'border-line text-ink-2 hover:text-ink')}
               >
+                <AirlineLogo iata={airlineIata(icao)} size={22} className="rounded-full" />
                 {airlineName(icao)} <span className="text-ink-3">{n}</span>
               </button>
             ))}

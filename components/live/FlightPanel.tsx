@@ -2,8 +2,10 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { useSheet } from '@/components/ui/useSheet';
+import { AirlineLogo, iataOf } from '@/components/ui/AirlineLogo';
 import Link from 'next/link';
-import { ArrowDown, ArrowUp, Check, Crosshair, Link2, Maximize2, Star, Ticket, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Crosshair, ExternalLink, Link2, Maximize2, Star, Ticket, X } from 'lucide-react';
+import { airlineSite } from '@/lib/airline-sites';
 import { useSaved } from '@/lib/saved';
 import { cn } from '@/lib/cn';
 import { airlineName } from '@/lib/airlines';
@@ -289,7 +291,10 @@ export function FlightPanel(props: Props) {
         <div className="relative px-4 pt-1 md:pt-4">
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="font-cond text-code font-bold leading-none tracking-tight">{title}</h2>
+              <h2 className="flex items-center gap-2.5 font-cond text-code font-bold leading-none tracking-tight">
+                <AirlineLogo iata={iataOf(f.fn, f.al)} size={34} />
+                {title}
+              </h2>
               <p className="mt-1 truncate text-small text-ink-2">
                 {airline || 'Operator unknown'}
                 {f.type && <span className="text-ink-3"> · {f.type}</span>}
@@ -365,6 +370,21 @@ export function FlightPanel(props: Props) {
           <div className="space-y-5 pt-4">
             {photoBlock('rounded-panel md:hidden')}
             {props.trail.length > 0 && <AltitudeProfile trail={props.trail} theme={theme} onScrub={props.onScrub} />}
+            {airlineSite(iataOf(f.fn, f.al)) && (
+              <a
+                href={airlineSite(iataOf(f.fn, f.al))!}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex min-h-12 items-center gap-3 rounded-control bg-panel-2 px-3 py-2 transition-colors hover:bg-line"
+              >
+                <AirlineLogo iata={iataOf(f.fn, f.al)} size={28} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-small font-semibold">Check-in, baggage and status</span>
+                  <span className="block truncate text-micro text-ink-3">on {airline || 'the airline'}’s site</span>
+                </span>
+                <ExternalLink className="h-4 w-4 shrink-0 text-ink-3" aria-hidden />
+              </a>
+            )}
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-small">
               {rows.map(([k, v]) => (
                 <div key={k} className="contents">

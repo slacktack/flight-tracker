@@ -5,6 +5,8 @@ import { X } from 'lucide-react';
 import { airlineName } from '@/lib/airlines';
 import { fmtInt, ktToKmh } from '@/lib/format';
 import type { LiveFlight } from '@/types/flight';
+import { AirlineLogo } from '@/components/ui/AirlineLogo';
+import { airlineIata } from '@/lib/airlines';
 
 interface Props {
   flights: LiveFlight[];
@@ -87,7 +89,13 @@ export function RightNow({ flights, onFlight, onRoute, onClose }: Props) {
             <h3 className="font-semibold text-ink-2">Airlines</h3>
             <ul className="mt-1 space-y-1">
               {s.airlines.map(([a, n]) => (
-                <li key={a} className="flex justify-between gap-2"><span className="truncate">{airlineName(a)}</span><span className="text-ink-3">{n}</span></li>
+                <li key={a} className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <AirlineLogo iata={airlineIata(a)} size={18} className="rounded" />
+                    <span className="truncate">{airlineName(a)}</span>
+                  </span>
+                  <span className="text-ink-3">{n}</span>
+                </li>
               ))}
             </ul>
           </div>

@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeftRight, ArrowUpRight, ChevronDown, Minus, Plus, Search } from 'lucide-react';
 import airports from '@/data/airports.min.json';
 import { PlacePicker } from '@/components/ui/PlacePicker';
+import { AirlineLogo } from '@/components/ui/AirlineLogo';
 import { cn } from '@/lib/cn';
 import { dayDiff, fmtDayShort, fmtInr, fmtMinutes, hhmm, todayIso } from '@/lib/format';
 import type { CompareResponse, FareDay, Itinerary, Leg, Place } from '@/types/booking';
@@ -89,7 +90,8 @@ function ItineraryCard({ it, cheapest }: { it: Itinerary; cheapest: boolean }) {
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
         {best && (
           <a href={best.deepLink} target="_blank" rel="noopener noreferrer sponsored" className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control bg-route px-4 text-small font-semibold text-white hover:brightness-110 sm:flex-none">
-            Book on {best.agent.name} for {fmtInr(best.price)} <ArrowUpRight className="h-4 w-4" aria-hidden />
+            <span className="whitespace-nowrap">Book on {best.agent.name}</span>
+            <span className="hidden whitespace-nowrap sm:inline">for {fmtInr(best.price)}</span> <ArrowUpRight className="h-4 w-4" aria-hidden />
           </a>
         )}
         {it.offers.length > 1 && (
@@ -196,6 +198,7 @@ export function FaresScreen() {
   const [nonstop, setNonstop] = useState(false);
   const [airline, setAirline] = useState<string | null>(null);
   const [windows, setWindows] = useState<string[]>([]);
+  const [maxMin, setMaxMin] = useState<number | null>(null);
 
   useEffect(() => {
     setFrom(placeOf(qFrom));
@@ -240,22 +243,42 @@ export function FaresScreen() {
 
   const all = useMemo(() => search.data?.itineraries ?? [], [search.data]);
   const airlines = useMemo(() => Array.from(new Set(all.flatMap((it) => it.legs.map((l) => l.carrier.name)))).filter(Boolean).sort(), [all]);
-  const shown = useMemo(
-    () =>
-      all.filter((it) => {
-        const out = it.legs[0];
-        if (!out) return false;
-        if (nonstop && it.legs.some((l) => l.stops > 0)) return false;
-        if (airline && !it.legs.some((l) => l.carrier.name === airline)) return false;
-        if (windows.length) {
-          const h = Number(out.dep.slice(11, 13));
+  const totalMin = (it: Itinerary) => it.legs.reduce((m, l) => m + l.minutes, 0);
+  const longest = useMemo(() => Math.max(60, ...all.map(totalMin)), [all]);
+  const shortest = useMemo(() => (all.length ? Math.min(...all.map(totalMin)) : 0), [all]);
+  const limit = maxMin ?? longest;
+
+  // Each filter in isolation, so chips can show their own cheapest fare.
+  const passes = (it: Itinerary, skip?: 'stops' | 'airline' | 'time' | 'duration') => {
+    const out = it.legs[0];
+    if (!out) return false;
+    if (skip !== 'stops' && nonstop && it.legs.some((l) => l.stops > 0)) return false;
+    if (skip !== 'airline' && airline && !it.legs.some((l) => l.carrier.name === airline)) return false;
+    if (skip !== 'time' && windows.length) {
+      const h = Number(out.dep.slice(11, 13));
+      const hh = h < 5 ? h + 24 : h;
+      if (!WINDOWS.some((w) => windows.includes(w.id) && hh >= w.from && hh < w.to)) return false;
+    }
+    if (skip !== 'duration' && totalMin(it) > limit) return false;
+    return true;
+  };
+  const shown = useMemo(() => all.filter((it) => passes(it)), [all, nonstop, airline, windows, limit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const minOf = (list: Itinerary[]) => (list.length ? Math.min(...list.map((i) => i.price)) : null);
+  const chipPrice = {
+    nonstop: minOf(all.filter((it) => passes(it, 'stops') && it.legs.every((l) => l.stops === 0))),
+    window: (w: (typeof WINDOWS)[number]) =>
+      minOf(
+        all.filter((it) => {
+          if (!passes(it, 'time')) return false;
+          const h = Number(it.legs[0].dep.slice(11, 13));
           const hh = h < 5 ? h + 24 : h;
-          if (!WINDOWS.some((w) => windows.includes(w.id) && hh >= w.from && hh < w.to)) return false;
-        }
-        return true;
-      }),
-    [all, nonstop, airline, windows],
-  );
+          return hh >= w.from && hh < w.to;
+        }),
+      ),
+    airline: (name: string) => minOf(all.filter((it) => passes(it, 'airline') && it.legs.some((l) => l.carrier.name === name))),
+  };
+  const airlineIataByName = useMemo(() => new Map(all.flatMap((it) => it.legs.map((l) => [l.carrier.name, l.carrier.iata] as const))), [all]);
+  const filtering = nonstop || !!airline || windows.length > 0 || maxMin !== null;
   const cheapest = shown.length ? Math.min(...shown.map((i) => i.price)) : 0;
 
   return (
@@ -379,31 +402,77 @@ export function FaresScreen() {
                 </button>
               ))}
             </div>
-            <button type="button" aria-pressed={nonstop} onClick={() => setNonstop((v) => !v)} className={cn('min-h-10 shrink-0 rounded-full border px-3.5 text-small font-semibold', nonstop ? 'border-good bg-good/15 text-good' : 'border-line text-ink-2')}>
-              Nonstop
+            <button type="button" aria-pressed={nonstop} onClick={() => setNonstop((v) => !v)} disabled={!nonstop && chipPrice.nonstop === null} className={cn('inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-small font-semibold transition-colors', nonstop ? 'border-good bg-good/15 text-good' : 'border-line text-ink-2 disabled:opacity-40')}>
+              Nonstop {chipPrice.nonstop !== null && <span className="font-normal text-ink-3">{fmtInr(chipPrice.nonstop)}</span>}
             </button>
-            {WINDOWS.map((w) => (
+            {WINDOWS.map((w) => {
+              const price = chipPrice.window(w);
+              const on = windows.includes(w.id);
+              return (
+                <button
+                  key={w.id}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={!on && price === null}
+                  onClick={() => setWindows((cur) => (cur.includes(w.id) ? cur.filter((x) => x !== w.id) : [...cur, w.id]))}
+                  className={cn('inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-small font-semibold transition-colors', on ? 'border-data bg-data/15 text-ink' : 'border-line text-ink-2 disabled:opacity-40')}
+                >
+                  {w.label} {price !== null && <span className="font-normal text-ink-3">{fmtInr(price)}</span>}
+                </button>
+              );
+            })}
+            {filtering && (
               <button
-                key={w.id}
                 type="button"
-                aria-pressed={windows.includes(w.id)}
-                onClick={() => setWindows((cur) => (cur.includes(w.id) ? cur.filter((x) => x !== w.id) : [...cur, w.id]))}
-                className={cn('min-h-10 shrink-0 rounded-full border px-3.5 text-small font-semibold', windows.includes(w.id) ? 'border-data bg-data/15 text-ink' : 'border-line text-ink-2')}
+                onClick={() => {
+                  setNonstop(false);
+                  setAirline(null);
+                  setWindows([]);
+                  setMaxMin(null);
+                }}
+                className="min-h-10 shrink-0 px-2 text-small font-semibold text-route"
               >
-                {w.label}
+                Clear filters
               </button>
-            ))}
-            {airlines.length > 1 && (
-              <select value={airline ?? ''} onChange={(e) => setAirline(e.target.value || null)} aria-label="Airline" className="min-h-10 shrink-0 rounded-full border border-line bg-transparent px-3 text-small font-semibold text-ink-2">
-                <option value="">All airlines</option>
-                {airlines.map((a) => (
-                  <option key={a} value={a}>
-                    {a}
-                  </option>
-                ))}
-              </select>
             )}
           </div>
+
+          {airlines.length > 1 && (
+            <div className="no-scrollbar -mx-4 mt-2 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Airline">
+              {airlines.map((a) => {
+                const on = airline === a;
+                const price = chipPrice.airline(a);
+                return (
+                  <button
+                    key={a}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setAirline(on ? null : a)}
+                    className={cn('inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-small font-semibold transition-colors', on ? 'border-route bg-route/10 text-ink' : 'border-line text-ink-2')}
+                  >
+                    <AirlineLogo iata={airlineIataByName.get(a) ?? ''} size={26} className="rounded-full" />
+                    {a} {price !== null && <span className="font-normal text-ink-3">{fmtInr(price)}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {all.length > 1 && longest > shortest && (
+            <label className="mt-3 flex items-center gap-3 text-small text-ink-2">
+              <span className="shrink-0">Max trip</span>
+              <input
+                type="range"
+                min={shortest}
+                max={longest}
+                step={15}
+                value={limit}
+                onChange={(e) => setMaxMin(Number(e.target.value) >= longest ? null : Number(e.target.value))}
+                className="h-2 flex-1 accent-[rgb(var(--route))]"
+              />
+              <span className="w-16 shrink-0 text-right font-semibold text-ink">{fmtMinutes(limit)}</span>
+            </label>
+          )}
 
           {search.isLoading && (
             <div className="mt-4">

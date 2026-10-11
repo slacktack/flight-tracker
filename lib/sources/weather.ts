@@ -1,4 +1,5 @@
 import { cached, fetchUpstreamJson, fetchUpstream } from '@/lib/api';
+// Types are shared with the client; fetchers run server-side only.
 
 const UA = { 'User-Agent': 'FlightTracker/1.0 (+https://github.com/slacktack/flight-tracker)', Accept: 'application/json' };
 
